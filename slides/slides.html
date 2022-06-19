@@ -1,18 +1,325 @@
 <section>
 
-<h2>Kubernetes</h2>
+<h2>Kubernetesハンズオン</h2>
 <h4>DockerとKubernetesを触ってみる</h4>
 
 </section>
 <section>
 
 <h2>事前準備</h2>
-<pre><code class="language-bash"># サーバにログイン
-$ ssh -i ~~~.pem ubuntu@10.35.0.xxx
 
-# 以下のリポジトリをclone
-$ git clone https://github.com/kuesy/kubernetes_training
+</section>
+<section>
+<section>
+
+<h3>OpenStackから作成した<br>インスタンスにログイン</h3>
+<pre><code class="language-bash">$ ssh -i ~~~.pem ubuntu@xx.xx.xx.xx
 </code></pre>
+
+</section>
+<section>
+
+<h3>リポジトリをclone</h3>
+<pre><code class="language-bash">$ git clone https://github.com/kuesy/kubernetes_training
+</code></pre>
+
+</section>
+<section>
+
+<h3>(Dockerを入れていない場合)</h3>
+<pre><code class="language-bash">$ sudo apt update &amp;&amp; sudo apt install -y docker.io
+
+$ sudo usermod -aG docker ubuntu
+$ sudo systemctl restart docker
+
+$ exit
+$ ssh -i ...
+</code></pre>
+
+</section>
+<section>
+
+<h3>(k8s環境を入れていない場合)</h3>
+<pre><code class="language-bash"># minikubeで構築する
+$ wget https://storage.googleapis.com/minikube/releases/latest/minikube-linux-amd64
+$ sudo chmod +x minikube-linux-amd64
+$ sudo mv minikube-linux-amd64 /usr/local/bin/minikube
+$ minikube start
+
+# kubectlを入れる
+$ curl -LO https://storage.googleapis.com/kubernetes-release/release/`curl -s https://storage.googleapis.com/kubernetes-release/release/stable.txt`/bin/linux/amd64/kubectl
+$ sudo chmod +x kubectl
+$ sudo mv kubectl /usr/local/bin/kubectl
+</code></pre>
+
+</section>
+</section>
+<section>
+
+<h2>Dockerハンズオン</h2>
+
+</section>
+<section>
+
+<h3>Dockerについて(振り返り)</h3>
+<ul>
+  <li>コンテナ型の仮想化技術</li>
+  <li>どのOSからでも実行できる</li>
+  <li>Dockerfile =&gt; Image =&gt; Containerで動作する<br>
+<img src="./img/about_docker.png" alt="docker">
+</li>
+</ul>
+
+</section>
+<section>
+
+<h3>Dockerを触ってみる! - その1</h3>
+<p>コンテナ環境にnginxを立ち上げてみる</p>
+
+</section>
+<section>
+<section>
+
+<h3>1. 対象のディレクトリに移動</h3>
+<pre><code class="language-bash">$ cd kubernetes_training/01_dockerfile/01_web_server_apache
+
+# Dockerfileとindex.htmlが入っていることを確認
+$ ls
+</code></pre>
+
+</section>
+<section>
+
+<h3>2. Dockerfile =&gt; Docker Image</h3>
+<p>イメージ名: apache_test</p>
+<pre><code class="language-bash">$ docker build -t apache_test ./
+
+# dockerイメージが生成されたことを確認
+$ docker image ls
+</code></pre>
+
+</section>
+<section>
+
+<h3>3. Dockerfileの中身について</h3>
+<ol>
+  <li>Ubuntuを入れて諸々インストール</li>
+  <li>ローカルのindex.htmlを/var/www/htmlにコピー</li>
+  <li>(コンテナ起動時)apacheを起動するコマンド実行</li>
+</ol>
+
+<pre><code class="language-dockerfile">FROM ubuntu # ベースのイメージをdocker hubから取得
+MAINTAINER hoge&lt;fuga@piyo.co.jp&gt; # 
+RUN apt-get update -y &amp;&amp; \
+apt-get install -y tzdata &amp;&amp; \
+apt-get install -y apache2
+COPY index.html /var/www/html/
+EXPOSE 80
+CMD ["apachectl", "-D", "FOREGROUND"]
+</code></pre>
+
+</section>
+<section>
+
+<h3>(index.html)</h3>
+<p>シンプルなやつ<img class="emoji" alt=":grinning:" src="https://github.githubassets.com/images/icons/emoji/unicode/1f600.png"></p>
+<pre><code class="language-html">&lt;!doctype html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;meta charset="utf-8"&gt;
+  &lt;title&gt;Example&lt;/title&gt;
+&lt;/head&gt;
+&lt;body&gt;
+Dockerテスト
+&lt;/body&gt;
+&lt;/html&gt;
+</code></pre>
+
+</section>
+<section>
+
+<h3>4. Dockerイメージ =&gt; Dockerコンテナ</h3>
+<p>ローカルの8000ポートを叩くと対象イメージの<br>
+80ポートに向くようにして実行！</p>
+<pre><code class="language-bash">$ docker run -p 8000:80 -d apache_test
+
+# プロセスが動き始めたことを確認
+$ docker ps
+</code></pre>
+
+</section>
+<section>
+
+<h3>5. 動作確認</h3>
+<p>8000ポートにリクエストを投げて返却されたらOK！</p>
+<pre><code class="language-bash">$ curl http://localhost:8000
+Dockerテスト
+</code></pre>
+
+</section>
+<section>
+
+<h3>6. 後処理(コンテナの削除)</h3>
+<pre><code class="language-bash"># 動作しているコンテナのIDを確認
+$ docker ps
+
+# 対象のコンテナを止めて削除
+$ docker stop (container id)
+$ docker rm (container id)
+
+# 対象のコンテナが消えたことを確認
+$ docker ps
+</code></pre>
+
+</section>
+<section>
+
+<h3>7. 後処理(イメージの削除)</h3>
+<p>イメージ名を指定して消すだけ！</p>
+<pre><code class="language-bash">$ docker rmi apache_test
+
+# apache_testが消えていることを確認
+$ docker image ls
+</code></pre>
+
+</section>
+</section>
+<section>
+
+<h3>Dockerを触ってみる! - その2</h3>
+<p>コンテナ環境にアプリケーションを立ち上げてみる</p>
+
+</section>
+<section>
+<section>
+
+<h3>1. 対象のディレクトリに移動</h3>
+<pre><code class="language-bash">$ cd kubernetes_training/01_dockerfile/02_web_server_app
+
+# Dockerfileとhello.jsが入っていることを確認
+$ ls
+</code></pre>
+
+</section>
+<section>
+
+<h3>2. Dockerfile =&gt; Docker Image</h3>
+<p>イメージ名: app_test</p>
+<pre><code class="language-bash">$ docker build -t app_test ./
+
+# dockerイメージが生成されたことを確認
+$ docker image ls
+</code></pre>
+
+</section>
+<section>
+
+<h3>3. Dockerfileの中身について</h3>
+<ol>
+  <li>12系のnode.jsをベースとしてインストール</li>
+  <li>ローカルのhello.jsを/hello.jsにコピー</li>
+  <li>(コンテナ起動時)node hello.jsが起動</li>
+</ol>
+
+<pre><code class="language-dockerfile">FROM node:12
+COPY hello.js /hello.js
+EXPOSE 3000
+CMD ["node", "hello"]
+</code></pre>
+
+</section>
+<section>
+
+<h3>(hello.js)</h3>
+<p>3000ポートにリクエスト投げたらHello Worldが返る<img class="emoji" alt=":grinning:" src="https://github.githubassets.com/images/icons/emoji/unicode/1f600.png"></p>
+<pre><code class="language-javascript">const http = require('http');
+
+const hostname = '0.0.0.0';
+const port = 3000;
+
+const server = http.createServer((req, res) =&gt; {
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/plain');
+  res.end('Hello World\n');
+});
+
+server.listen(port, hostname, () =&gt; {
+  console.log(`Server running at http://${hostname}:${port}/`);
+});
+</code></pre>
+
+</section>
+<section>
+
+<h3>4. Dockerイメージ =&gt; Dockerコンテナ</h3>
+<p>ローカルの3000ポートを叩くと対象イメージの<br>
+3000ポートに向けるようにして実行！</p>
+<pre><code class="language-bash">$ docker run -p 3000:3000 -d app_test
+
+# プロセスが動き始めたことを確認
+$ docker ps
+</code></pre>
+
+</section>
+<section>
+
+<h3>5. 動作確認</h3>
+<p>3000ポートにリクエストを投げて返却されたらOK！</p>
+<pre><code class="language-bash">$ curl http://localhost:8000
+Hello World
+</code></pre>
+
+</section>
+<section>
+
+<h3>6. 後処理</h3>
+<pre><code class="language-bash"># 動作しているコンテナのIDを確認
+$ docker ps
+
+# 対象のコンテナを止めて削除
+$ docker stop (container id)
+$ docker rm (container id)
+
+# イメージの削除
+$ docker rmi apache_test
+</code></pre>
+
+</section>
+</section>
+<section>
+
+<h3>Dockerの基本的なコマンドまとめ</h3>
+<pre><code class="language-bash"># Dockerイメージの作成
+$ docker build -t &lt;イメージ名&gt; &lt;Dockerfileのディレクトリ&gt;
+# Dockerイメージの確認
+$ docker image ls
+# Dockerイメージの削除
+$ docker rmi &lt;イメージ名&gt;
+
+# Dockerコンテナの起動
+$ docker run -d &lt;イメージ名&gt;
+# Dockerコンテナの起動(ローカルからコンテナに叩くようにする設定)
+$ docker run -p &lt;ローカルポート&gt;:&lt;コンテナポート&gt; -d &lt;イメージ名&gt;
+# Dockerコンテナの確認
+$ docker ps 
+# Dockerコンテナの停止
+$ docker stop &lt;container id&gt;
+# Dockerコンテナの削除
+$ docker rm &lt;container id&gt;
+</code></pre>
+
+</section>
+<section>
+
+<h2>Kubernetesハンズオン</h2>
+
+</section>
+<section>
+
+<h3>Kubernetesについて(振り返り)</h3>
+<ul>
+  <li><img src="./hoge.png" alt="kubernetes"></li>
+</ul>
 
 <style type="text/css">
   .reveal h1,
