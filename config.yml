@@ -1,0 +1,7 @@
+theme: "blood"
+author: "kuesy"
+title: "k8s handson"
+revealjs_config: 
+  slideNumber: true
+  history: true
+  controls: true
