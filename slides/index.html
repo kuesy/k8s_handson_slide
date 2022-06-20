@@ -126,7 +126,7 @@ $ sudo mv kubectl /usr/local/bin/kubectl
 <section>
 
 <h3>1. 対象のディレクトリに移動</h3>
-<pre><code class="language-bash">$ cd kubernetes_training/01_dockerfile/01_web_server_apache
+<pre><code class="language-bash">$ cd ~/kubernetes_training/01_dockerfile/01_web_server_apache
 
 # Dockerfileとindex.htmlが入っていることを確認
 $ ls
@@ -184,7 +184,7 @@ Dockerテスト
 <section>
 
 <h3>4. Dockerイメージ =&gt; Dockerコンテナ</h3>
-<p>ローカルの8000ポートを叩くと対象イメージの<br>
+<p>ローカルの8000ポートが対象イメージの<br>
 80ポートに向くようにして実行！</p>
 <pre><code class="language-bash">$ docker run -p 8000:80 -d apache_test
 
@@ -239,7 +239,7 @@ $ docker image ls
 <section>
 
 <h3>1. 対象のディレクトリに移動</h3>
-<pre><code class="language-bash">$ cd kubernetes_training/01_dockerfile/02_web_server_app
+<pre><code class="language-bash">$ cd ~/kubernetes_training/01_dockerfile/02_web_server_app
 
 # Dockerfileとhello.jsが入っていることを確認
 $ ls
@@ -297,8 +297,8 @@ server.listen(port, hostname, () =&gt; {
 <section>
 
 <h3>4. Dockerイメージ =&gt; Dockerコンテナ</h3>
-<p>ローカルの3000ポートを叩くと対象イメージの<br>
-3000ポートに向けるようにして実行！</p>
+<p>ローカルの3000ポートが対象イメージの<br>
+3000ポートに向くようにして実行！</p>
 <pre><code class="language-bash">$ docker run -p 3000:3000 -d app_test
 
 # プロセスが動き始めたことを確認
@@ -363,7 +363,285 @@ $ docker rm &lt;container id&gt;
 
 <h3>Kubernetesについて(振り返り)</h3>
 <ul>
-  <li><img src="./hoge.png" alt="kubernetes"></li>
+  <li>コンテナの運用・管理を自動化するもの</li>
+  <li>マニフェスト(yaml形式)を定義して指示する<br>
+<img src="./img/about_k8s.png" height="420px">
+</li>
+</ul>
+
+</section>
+<section>
+
+<h3>k8sを触ってみる！ - その1</h3>
+<p>Podの操作</p>
+
+</section>
+<section>
+<section>
+
+<h3>1. 対象のディレクトリに移動</h3>
+<pre><code class="language-bash">$ cd ~/kubernetes_training/02_kubernetes/01_pod
+
+# pod.yaml, pod_namespaceが入っていることを確認
+$ ls
+</code></pre>
+
+</section>
+<section>
+
+<h3>2. pod.yamlをデプロイする</h3>
+<pre><code class="language-bash">$ kubectl apply -f pod.yaml
+
+# podの中身を確認して、runningとなっていればOK
+$ kubectl get pod
+</code></pre>
+
+</section>
+<section>
+
+<h3>3. pod.yamlの中身</h3>
+<ol>
+  <li>nginx-pod1というpod名</li>
+  <li>nginxのコンテナを立ち上げる</li>
+</ol>
+
+<pre><code class="language-yaml">apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-pod1
+spec:
+  containers:
+    - name: nginx
+      image: nginx
+</code></pre>
+
+</section>
+<section>
+
+<h3>4. 後処理(podの削除)</h3>
+<pre><code class="language-bash">$ kubectl delete -f pod.yaml
+# もしくはpod名を指定して削除
+$ kubectl delete nginx-pod1
+
+# 削除されたことを確認
+$ kubectl get pod 
+</code></pre>
+
+</section>
+<section>
+
+<h3>5. pod_namespace.yamlの<br>デプロイ</h3>
+<p>自分のnamespaceを作成して実行してみる!</p>
+<pre><code class="language-bash"># namespaceの作成・確認
+$ kubectl create namespace &lt;名前&gt;
+$ kubectl get namespace
+
+# yaml内のnamespaceの箇所を書き換えてデプロイする
+$ vim pod_namespace.yaml
+$ kubectl apply -f pod_namespace.yaml
+
+# podの起動確認(-nで自分のnamespaceを入れる)
+$ kubectl get pod -n &lt;名前&gt;
+</code></pre>
+
+</section>
+<section>
+
+<h3>6. podの中に入ってnginxの動作を確認する(ぷち応用)</h3>
+<p>kubectl execコマンドでpodの中に入ることができる</p>
+<pre><code class="language-bash">$ kubectl exec -n &lt;名前&gt; -it nginx-pod2 -- /bin/bash
+
+# 上手く中にはいれたらnginxが立ち上がっていることを確認
+$ curl http://localhost:80
+$ exit
+</code></pre>
+
+</section>
+</section>
+<section>
+
+<h3>k8sを触ってみる！ - その2</h3>
+<p>Deploymentの操作</p>
+
+</section>
+<section>
+<section>
+
+<h3>1. 対象のディレクトリに移動</h3>
+<pre><code class="language-bash">$ cd ~/kubernetes_training/02_kubernetes/02_deployment
+
+# deployment.yamlが入っていることを確認
+$ ls
+</code></pre>
+
+</section>
+<section>
+
+<h3>2. deployment.yamlをデプロイする</h3>
+<pre><code class="language-bash">$ kubectl apply -f deployment.yaml
+
+# deploymentの確認
+$ kubectl get deployment
+
+# podが3つ起動していることを確認
+$ kubectl get pod
+</code></pre>
+
+</section>
+<section>
+
+<h3>3. deployment.yamlの中身</h3>
+<ol>
+  <li>nginx-deploymentというデプロイ名</li>
+  <li>replicas(podの数)が３つ</li>
+</ol>
+
+<pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx
+</code></pre>
+
+</section>
+<section>
+
+<h3>3. podを１つ消してみる</h3>
+<p>消すと新しくpodが立ち上がる事を確認  <br>
+<em style="color:blue">オートヒーリング</em>と呼ばれる！</p>
+<pre><code class="language-bash">$ kubectl get pod
+# いずれか１つのpod名を削除
+$ kubectl delete pod &lt;pod名&gt;
+
+# 新しく起動したpodがいることを確認
+$ kubectl get pod
+</code></pre>
+
+</section>
+<section>
+
+<h3>4. 後処理(deploymentの削除)</h3>
+<pre><code class="language-bash">$ kubectl delete -f deployment.yaml
+# もしくはdeployment名を指定して削除
+$ kubectl delete deployment nginx-deployment
+</code></pre>
+
+</section>
+</section>
+<section>
+
+<h3>k8sを触ってみる！ - その3</h3>
+<p>Serviceの操作</p>
+
+</section>
+<section>
+<section>
+
+<h3>1. 対象のディレクトリに移動</h3>
+<pre><code class="language-bash">$ cd ~/kubernetes_training/02_kubernetes/03_service
+
+# deployment.yaml, service.yamlが入っていることを確認
+$ ls
+</code></pre>
+
+</section>
+<section>
+
+<h3>2. deployment, serviceをデプロイする</h3>
+<p>※ deployment.yamlは先程と同じ中身</p>
+<pre><code class="language-bash">$ kubectl apply -f deployment.yaml
+$ kubectl apply -f service.yaml
+
+# それぞれ立ち上がっている事を確認
+$ kubectl get deployment
+$ kubectl get service
+</code></pre>
+
+</section>
+<section>
+
+<h3>3. service.yamlの中身</h3>
+<p>nodeのIPに30007ポートを叩くと、app名: nginxに紐づくpodの80ポートが叩かれる</p>
+<pre><code class="language-yaml">apiVersion: v1
+kind: Service
+metadata:
+  name: service-test
+spec:
+  type: NodePort
+  selector:
+    app: nginx
+  ports:
+    - port: 80
+      nodePort: 30007
+</code></pre>
+
+</section>
+<section>
+
+<h3>(deployment.yaml)</h3>
+<p>appの箇所がnginxとなる</p>
+<pre><code class="language-yaml">apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: nginx-deployment
+spec:
+  selector:
+    matchLabels:
+      app: nginx
+  replicas: 3
+  template:
+    metadata:
+      labels:
+        app: nginx
+    spec:
+      containers:
+        - name: nginx
+          image: nginx
+</code></pre>
+
+</section>
+<section>
+
+<h3>4. 動作確認</h3>
+<pre><code class="language-bash"># nodeのIPを確認(-o wideで見れる項目が増える)
+$ kubectl get nodes -o wide
+
+# 30007にリクエストを投げてnginxの初期ページのものが返ってこればOK!
+$ curl 192.168.xx.x:30007
+</code></pre>
+
+</section>
+<section>
+
+<h3>5. podを１つ消してみる</h3>
+<p>podを１つ消してもwebサーバ(nginx)が落ちていないことを確認</p>
+<pre><code class="language-bash">$ kubectl get pod
+$ kubectl delete pod  &lt;pod名&gt;
+
+# 30007にリクエストを投げても問題なく動作しているはず！
+$ curl 192.168.xx.x:30007
+</code></pre>
+
+</section>
+</section>
+<section>
+
+<h2>まとめ</h2>
+<ul>
+  <li>Dockerってすごい</li>
+  <li>kubernetesってすごい</li>
 </ul>
 
 <style type="text/css">
